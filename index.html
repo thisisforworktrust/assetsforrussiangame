@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MODE SELECT</title>
+    <style>
+        /* CORE STYLE & RESET */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: 'Courier New', Courier, monospace; 
+            user-select: none; 
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ATMOSPHERE LAYERS */
+        #vignette { 
+            position: absolute; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: radial-gradient(circle, transparent 50%, black 100%); 
+            z-index: 2; 
+            pointer-events: none;
+        }
+
+        #scanlines { 
+            position: absolute; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px); 
+            pointer-events: none; 
+            z-index: 3; 
+        }
+
+        /* MENU BOX */
+        .menu-container { 
+            background: rgba(0, 0, 0, 0.95); 
+            border: 2px solid #500; 
+            padding: 60px; 
+            text-align: center; 
+            color: #ccc; 
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(100, 0, 0, 0.5);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 { 
+            color: #c00; 
+            font-size: 3em; 
+            margin: 0 0 10px 0; 
+            text-shadow: 2px 2px 0 #000;
+            text-transform: uppercase;
+        }
+
+        p.subtext {
+            color: #0f0;
+            border-bottom: 1px dashed #0f0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        /* BUTTONS */
+        button { 
+            background: #800; 
+            color: #fff; 
+            border: 1px solid #f00; 
+            padding: 20px 0; 
+            width: 100%;
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            font-family: inherit; 
+            margin-top: 20px; 
+            text-transform: uppercase; 
+            transition: all 0.2s;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        button:hover { 
+            background: #f00; 
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 15px #f00;
+        }
+
+        /* BLINKING TEXT EFFECT */
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 0.8em;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="vignette"></div>
+    <div id="scanlines"></div>
+
+    <div class="menu-container">
+        <h1>SELECT MODE</h1>
+        <p class="subtext">AWAITING INPUT<span class="blink">_</span></p>
+
+        <button onclick="window.location.href='solo.html'">
+            SOLO OPERATION
+        </button>
+
+        <button onclick="window.location.href='coop.html'">
+            CO-OP OPERATION
+        </button>
+
+        <div class="footer"></div>
+    </div>
+
+</body>
+</html>
