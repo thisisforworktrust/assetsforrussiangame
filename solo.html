@@ -35,6 +35,21 @@
         #scare-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; display: none; z-index: 20; display: flex; align-items: center; justify-content: center; color: red; font-size: 5em; font-weight: bold; }
         
         #cheat-msg { position: absolute; top: 10px; right: 10px; color: yellow; font-weight: bold; opacity: 0; transition: opacity 0.5s; z-index: 100;}
+
+        #mobile-controls { position: fixed; inset: auto 0 0 0; display: none; justify-content: space-between; padding: 16px; z-index: 50; pointer-events: none; }
+        #mobile-move, #mobile-look { width: 180px; height: 180px; pointer-events: auto; }
+        #mobile-move { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 6px; }
+        .mobile-btn { border: 1px solid #f00; background: rgba(80, 0, 0, 0.65); color: #fff; font-size: 1.4rem; font-family: inherit; border-radius: 10px; }
+        .mobile-btn:active, .mobile-btn.active { background: rgba(200, 0, 0, 0.9); }
+        .blank { opacity: 0; pointer-events: none; }
+        #mobile-look { border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 50%; position: relative; touch-action: none; }
+        #mobile-look::after { content: 'LOOK'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.65); font-size: 0.8rem; letter-spacing: 1px; }
+        #mobile-shoot { position: absolute; right: 20px; bottom: 210px; pointer-events: auto; width: 92px; height: 92px; border-radius: 50%; border: 2px solid #fff; background: rgba(160, 0, 0, 0.7); color: #fff; font-family: inherit; font-size: 0.9rem; display: none; }
+
+        @media (pointer: coarse) {
+            #mobile-controls { display: flex; }
+            #hud-bottom { font-size: 16px; max-width: 60%; }
+        }
     </style>
 </head>
 <body>
@@ -57,6 +72,22 @@
     </div>
 
     <div id="hud-bottom">WASD to Move. Mouse to Look.<br><span style="font-size: 0.8em; color: #888;"></span></div>
+
+    <div id="mobile-controls">
+        <div id="mobile-move">
+            <div class="blank"></div>
+            <button class="mobile-btn" data-move="f">▲</button>
+            <div class="blank"></div>
+            <button class="mobile-btn" data-move="l">◀</button>
+            <div class="blank"></div>
+            <button class="mobile-btn" data-move="r">▶</button>
+            <div class="blank"></div>
+            <button class="mobile-btn" data-move="b">▼</button>
+            <div class="blank"></div>
+        </div>
+        <div id="mobile-look"></div>
+        <button id="mobile-shoot">SHOOT</button>
+    </div>
 
     <div id="ui-layer">
         <div id="start-screen" class="menu">
@@ -282,6 +313,70 @@ osc2.frequency.exponentialRampToValueAtTime(70, now + 1);
 
         const controls = new PointerLockControls(camera, document.body);
         let move = { f: false, b: false, l: false, r: false };
+        const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+        const lookPad = document.getElementById('mobile-look');
+        const shootBtn = document.getElementById('mobile-shoot');
+        let activeLookTouchId = null;
+        let lastLook = { x: 0, y: 0 };
+
+        if (isTouchDevice) {
+            document.getElementById('hud-bottom').innerText = 'TOUCH PAD TO MOVE / LOOK. TAP SHOOT IN BOSS FIGHT.';
+        }
+
+        function setMoveFlag(dir, pressed) {
+            if (move[dir] === undefined) return;
+            move[dir] = pressed;
+        }
+
+        function bindMoveButton(btn) {
+            const dir = btn.dataset.move;
+            const start = (e) => { e.preventDefault(); setMoveFlag(dir, true); btn.classList.add('active'); };
+            const end = (e) => { e.preventDefault(); setMoveFlag(dir, false); btn.classList.remove('active'); };
+            btn.addEventListener('touchstart', start, { passive: false });
+            btn.addEventListener('touchend', end, { passive: false });
+            btn.addEventListener('touchcancel', end, { passive: false });
+            btn.addEventListener('pointerdown', start);
+            btn.addEventListener('pointerup', end);
+            btn.addEventListener('pointerleave', end);
+        }
+
+        document.querySelectorAll('#mobile-move .mobile-btn').forEach(bindMoveButton);
+
+        lookPad.addEventListener('touchstart', (e) => {
+            if (activeLookTouchId !== null) return;
+            const t = e.changedTouches[0];
+            activeLookTouchId = t.identifier;
+            lastLook.x = t.clientX;
+            lastLook.y = t.clientY;
+            e.preventDefault();
+        }, { passive: false });
+
+        lookPad.addEventListener('touchmove', (e) => {
+            if (activeLookTouchId === null) return;
+            for (const t of e.changedTouches) {
+                if (t.identifier !== activeLookTouchId) continue;
+                const dx = t.clientX - lastLook.x;
+                const dy = t.clientY - lastLook.y;
+                controls.getObject().rotation.y -= dx * 0.003;
+                camera.rotation.x -= dy * 0.003;
+                camera.rotation.x = Math.max(-1.3, Math.min(1.3, camera.rotation.x));
+                lastLook.x = t.clientX;
+                lastLook.y = t.clientY;
+                break;
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        lookPad.addEventListener('touchend', (e) => {
+            for (const t of e.changedTouches) {
+                if (t.identifier === activeLookTouchId) activeLookTouchId = null;
+            }
+        });
+
+        shootBtn.addEventListener('touchstart', (e) => {
+            if (state.mode === 'BOSS') shoot();
+            e.preventDefault();
+        }, { passive: false });
 
         function isMenuVisible(id) {
             return !document.getElementById(id).classList.contains('hidden');
@@ -426,6 +521,7 @@ osc2.frequency.exponentialRampToValueAtTime(70, now + 1);
             document.getElementById('hud-top').classList.remove('hidden');
             document.getElementById('boss-hud').style.display = 'none';
             document.getElementById('crosshair').style.display = 'none';
+            shootBtn.style.display = 'none';
             weapon.visible = false;
                         scene.fog.far = 60;
 
@@ -578,8 +674,9 @@ osc2.frequency.exponentialRampToValueAtTime(70, now + 1);
             document.getElementById('hud-top').classList.add('hidden');
             document.getElementById('boss-hud').style.display = 'block';
             document.getElementById('level-display').innerText = "6 (BOSS)";
-            document.getElementById('hud-bottom').innerText = "LEFT CLICK TO SHOOT. USE PILLARS FOR COVER.";
+            document.getElementById('hud-bottom').innerText = isTouchDevice ? "TAP SHOOT. USE PILLARS FOR COVER." : "LEFT CLICK TO SHOOT. USE PILLARS FOR COVER.";
             document.getElementById('crosshair').style.display = 'block';
+            shootBtn.style.display = isTouchDevice ? 'block' : 'none';
             weapon.visible = true;
                         scene.fog.far = 200;
 
@@ -650,6 +747,7 @@ osc2.frequency.exponentialRampToValueAtTime(70, now + 1);
                 state.active = false;
                 document.exitPointerLock();
                 document.getElementById('victory-screen').classList.remove('hidden');
+                shootBtn.style.display = 'none';
             }
         }
 
@@ -826,6 +924,7 @@ osc2.frequency.exponentialRampToValueAtTime(70, now + 1);
         function gameOver() {
             state.active = false;
                         document.exitPointerLock();
+            shootBtn.style.display = 'none';
             document.getElementById('scare-overlay').classList.remove('hidden');
             playSound('jumpscare'); // PLAY JUMPSCARE SOUND
             setTimeout(() => {
