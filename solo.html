@@ -50,6 +50,9 @@
             #mobile-controls { display: flex; }
             #hud-bottom { font-size: 16px; max-width: 60%; }
         }
+
+        body.touch-device #mobile-controls { display: flex; }
+        body.touch-device #hud-bottom { font-size: 16px; max-width: 60%; }
     </style>
 </head>
 <body>
@@ -313,13 +316,14 @@ osc2.frequency.exponentialRampToValueAtTime(70, now + 1);
 
         const controls = new PointerLockControls(camera, document.body);
         let move = { f: false, b: false, l: false, r: false };
-        const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+        const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
         const lookPad = document.getElementById('mobile-look');
         const shootBtn = document.getElementById('mobile-shoot');
         let activeLookTouchId = null;
         let lastLook = { x: 0, y: 0 };
 
         if (isTouchDevice) {
+            document.body.classList.add('touch-device');
             document.getElementById('hud-bottom').innerText = 'TOUCH PAD TO MOVE / LOOK. TAP SHOOT IN BOSS FIGHT.';
         }
 
