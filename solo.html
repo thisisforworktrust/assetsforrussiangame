@@ -35,6 +35,8 @@
         #scare-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; display: none; z-index: 20; display: flex; align-items: center; justify-content: center; color: red; font-size: 5em; font-weight: bold; }
         
         #cheat-msg { position: absolute; top: 10px; right: 10px; color: yellow; font-weight: bold; opacity: 0; transition: opacity 0.5s; z-index: 100;}
+
+
     </style>
 </head>
 <body>
@@ -57,6 +59,7 @@
     </div>
 
     <div id="hud-bottom">WASD to Move. Mouse to Look.<br><span style="font-size: 0.8em; color: #888;"></span></div>
+
 
     <div id="ui-layer">
         <div id="start-screen" class="menu">
@@ -282,6 +285,7 @@ osc2.frequency.exponentialRampToValueAtTime(70, now + 1);
 
         const controls = new PointerLockControls(camera, document.body);
         let move = { f: false, b: false, l: false, r: false };
+
 
         function isMenuVisible(id) {
             return !document.getElementById(id).classList.contains('hidden');
