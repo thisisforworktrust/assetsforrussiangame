@@ -57,6 +57,8 @@
         #cheat-msg { position: absolute; top: 10px; right: 10px; color: yellow; font-weight: bold; opacity: 0; transition: opacity 0.5s; z-index: 100;}
         #revive-msg { position: absolute; top: 50px; right: 10px; color: cyan; font-weight: bold; opacity: 0; transition: opacity 0.5s; z-index: 100; text-shadow: 0 0 5px cyan; }
         #status-msg { color: #ffff00; margin-bottom: 10px; font-size: 0.9em; min-height: 1.2em; }
+        #settings-panel { position: absolute; right: 20px; bottom: 20px; z-index: 8; color: #9cf; background: rgba(0,0,0,0.6); border: 1px solid #58f; padding: 8px 10px; font-size: 0.85rem; pointer-events: auto; }
+        #settings-panel input[type="range"] { width: 140px; }
     </style>
 </head>
 <body>
@@ -83,7 +85,12 @@
         <div id="boss-hp-bar"><div id="boss-hp-fill"></div></div>
     </div>
 
-    <div id="hud-bottom">WASD to Move. Mouse to Look.<br><span style="font-size: 0.8em; color: #888;"></span></div>
+    <div id="hud-bottom">WASD / Arrow Keys to Move. Shift to Sprint. Mouse to Look.<br><span style="font-size: 0.8em; color: #888;"></span></div>
+
+    <div id="settings-panel">
+        LOOK SENS <span id="sens-value">1.00</span><br>
+        <input id="sens-slider" type="range" min="0.4" max="2.0" step="0.05" value="1.0">
+    </div>
 
     <div id="ui-layer">
         <div id="start-screen" class="menu">
@@ -166,6 +173,14 @@
         scene.add(camera);
 
         const controls = new PointerLockControls(camera, document.body);
+        const sensSlider = document.getElementById('sens-slider');
+        const sensValue = document.getElementById('sens-value');
+        controls.pointerSpeed = Number(sensSlider.value);
+        sensValue.innerText = controls.pointerSpeed.toFixed(2);
+        sensSlider.addEventListener('input', () => {
+            controls.pointerSpeed = Number(sensSlider.value);
+            sensValue.innerText = controls.pointerSpeed.toFixed(2);
+        });
 
         // --- ASSET LOADERS ---
         const loader = new THREE.TextureLoader();
@@ -511,6 +526,16 @@
 
         let move = { f: false, b: false, l: false, r: false };
 
+        function resetMovement() {
+            move = { f: false, b: false, l: false, r: false };
+            state.boost = false;
+        }
+
+        function shouldIgnoreGameplayInput(e) {
+            const tag = e.target?.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable;
+        }
+
         function isMenuVisible(id) {
             return !document.getElementById(id).classList.contains('hidden');
         }
@@ -557,20 +582,63 @@
                 }
             }
 
+            if (!state.active || !controls.isLocked || shouldIgnoreGameplayInput(e)) return;
+
             switch(e.code) {
-                case 'KeyW': move.f = true; break;
-                case 'KeyS': move.b = true; break;
-                case 'KeyA': move.l = true; break;
-                case 'KeyD': move.r = true; break;
+                case 'KeyW':
+                case 'ArrowUp':
+                    move.f = true;
+                    e.preventDefault();
+                    break;
+                case 'KeyS':
+                case 'ArrowDown':
+                    move.b = true;
+                    e.preventDefault();
+                    break;
+                case 'KeyA':
+                case 'ArrowLeft':
+                    move.l = true;
+                    e.preventDefault();
+                    break;
+                case 'KeyD':
+                case 'ArrowRight':
+                    move.r = true;
+                    e.preventDefault();
+                    break;
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    state.boost = true;
+                    break;
             }
         });
         document.addEventListener('keyup', (e) => {
             switch(e.code) {
-                case 'KeyW': move.f = false; break;
-                case 'KeyS': move.b = false; break;
-                case 'KeyA': move.l = false; break;
-                case 'KeyD': move.r = false; break;
+                case 'KeyW':
+                case 'ArrowUp':
+                    move.f = false;
+                    break;
+                case 'KeyS':
+                case 'ArrowDown':
+                    move.b = false;
+                    break;
+                case 'KeyA':
+                case 'ArrowLeft':
+                    move.l = false;
+                    break;
+                case 'KeyD':
+                case 'ArrowRight':
+                    move.r = false;
+                    break;
+                case 'ShiftLeft':
+                case 'ShiftRight':
+                    state.boost = false;
+                    break;
             }
+        });
+
+        window.addEventListener('blur', resetMovement);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) resetMovement();
         });
         document.addEventListener('mousedown', () => { if(state.mode === 'BOSS') shoot(); });
 
@@ -578,15 +646,22 @@
             if (ignorePause) { ignorePause = false; return; }
             if (state.active) {
                 document.getElementById('pause-screen').classList.remove('hidden');
-                move = { f: false, b: false, l: false, r: false };
+                resetMovement();
             }
         });
 
         document.getElementById('btn-resume').onclick = () => {
             document.getElementById('pause-screen').classList.add('hidden');
             state.active = true;
+            resetMovement();
             controls.lock();
         };
+
+        function checkWall(x, z) {
+            const gx = Math.floor((x + CONFIG.TILE/2)/CONFIG.TILE + width/2);
+            const gy = Math.floor((z + CONFIG.TILE/2)/CONFIG.TILE + height/2);
+            return gx < 0 || gx >= width || gy < 0 || gy >= height || mapData[gy][gx] === 1;
+        }
 
         function getTex(col) {
             const c = document.createElement('canvas'); c.width=32; c.height=32;
@@ -644,6 +719,7 @@
         function buildLevel(lvl, levelSeed = getLevelSeed(lvl)) {
             state.level = lvl;
             state.active = false;
+            resetMovement();
             ignorePause = true; 
             document.exitPointerLock();
             document.getElementById('pause-screen').classList.add('hidden');
@@ -792,7 +868,7 @@
                 bossB.scale.set(8, 8, 1);
                 bossB.position.set(0, 5, -60);
                 scene.add(bossB);
-                document.getElementById('hud-bottom').innerText = 'PHASE 2: TWO BOSSES. MULTI-SHOT INCOMING.';
+                document.getElementById('hud-bottom').innerText = 'PHASE 2: TWO BOSSES. DODGE MULTI-SHOT.';
             } else if (phase === 3) {
                 if (bossA) scene.remove(bossA);
                 if (bossB) scene.remove(bossB);
@@ -801,7 +877,7 @@
                 bossC.scale.set(8, 8, 1);
                 bossC.position.set(0, 5, -60);
                 scene.add(bossC);
-                document.getElementById('hud-bottom').innerText = 'PHASE 3: FINAL CHASER BOSS.';
+                document.getElementById('hud-bottom').innerText = 'PHASE 3: FINAL CHASER. KEEP MOVING.';
             } else {
                 document.getElementById('hud-bottom').innerText = 'PHASE 1: NORMAL BOSS.';
             }
@@ -858,8 +934,8 @@
             }
 
             bossA = new THREE.Sprite(new THREE.SpriteMaterial({map: texMonster, color: 0xff5555}));
-            bossA.scale.set(20, 25, 1);
-            bossA.position.set(0, 12, -60);
+            bossA.scale.set(8, 8, 1);
+            bossA.position.set(0, 5, -60);
             bossA.name = "BOSS";
             scene.add(bossA);
             monster = bossA;
@@ -905,7 +981,7 @@
             state.lastShot = Date.now();
             playSound('shot');
 
-            const bullet = new THREE.Sprite(new THREE.SpriteMaterial({map: texBullet, color: 0xffffff}));
+            const bullet = new THREE.Sprite(new THREE.SpriteMaterial({map: texBullet, color: 0x66aaff}));
             bullet.scale.set(2,2,1);
             bullet.position.copy(camera.position);
 
@@ -932,6 +1008,7 @@
 
         function gameOver() {
             state.active = false;
+            resetMovement();
                         document.exitPointerLock();
             document.getElementById('scare-overlay').classList.remove('hidden');
             playSound('jumpscare');
@@ -944,6 +1021,7 @@
 
         function victory() {
             state.active = false;
+            resetMovement();
                         document.exitPointerLock();
             document.getElementById('victory-screen').classList.remove('hidden');
             document.getElementById('ui-layer').style.pointerEvents = "auto";
@@ -1034,8 +1112,16 @@
                         if (dist < 2) {
                             gameOver();
                         } else {
-                            const dirToPlayer = new THREE.Vector3().subVectors(camera.position, monster.position).normalize();
-                            monster.position.addScaledVector(dirToPlayer, (CONFIG.SPEED * 0.6) * dt);
+                            const dirToPlayer = new THREE.Vector3().subVectors(camera.position, monster.position).setY(0);
+                            if (dirToPlayer.lengthSq() > 0) {
+                                dirToPlayer.normalize();
+                                const chaseSpeed = dist < 30 ? CONFIG.SPEED * 0.75 : CONFIG.SPEED * 0.45;
+                                const step = chaseSpeed * dt;
+                                const nx = monster.position.x + dirToPlayer.x * step;
+                                const nz = monster.position.z + dirToPlayer.z * step;
+                                if (!checkWall(nx, monster.position.z)) monster.position.x = nx;
+                                if (!checkWall(monster.position.x, nz)) monster.position.z = nz;
+                            }
                         }
                     }
                 }
